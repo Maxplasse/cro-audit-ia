@@ -222,8 +222,10 @@ function exportToExcel(report: AuditReport, formData: AuditFormData) {
     const ws = XLSX.utils.aoa_to_sheet(sectionData);
     ws["!cols"] = [{ wch: 12 }, { wch: 55 }, { wch: 55 }];
 
-    // Nom d'onglet tronque a 31 car (limite Excel)
-    const sheetName = section.title.slice(0, 31);
+    // Nom d'onglet : supprimer les caracteres interdits par Excel et tronquer a 31 car
+    const sheetName = section.title
+      .replace(/[:\\/?*[\]]/g, "-")
+      .slice(0, 31);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
