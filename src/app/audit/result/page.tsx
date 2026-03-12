@@ -10,11 +10,12 @@ import {
   AlertTriangle,
   XCircle,
   Zap,
-  Download,
+  FileSpreadsheet,
   RotateCcw,
   Monitor,
   ImageOff,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import type { AuditReport, AuditFormData, AuditSection } from "@/types/audit";
 
 function ScoreBadge({ score }: { score: number }) {
@@ -162,6 +163,74 @@ function SectionCard({ section }: { section: AuditSection }) {
   );
 }
 
+function exportToExcel(report: AuditReport, formData: AuditFormData) {
+  const wb = XLSX.utils.book_new();
+
+  // --- Onglet 1 : Synthese ---
+  const syntheseData = [
+    ["Rapport d'audit CRO"],
+    [],
+    ["URL", formData.url],
+    ["Type de page", formData.pageType],
+    ["Objectif", formData.goal],
+    ["Audience cible", formData.audience],
+    ["Source de trafic", formData.trafficSource],
+    ...(formData.conversionRate ? [["Taux de conversion actuel", formData.conversionRate]] : []),
+    ...(formData.monthlyTraffic ? [["Trafic mensuel", formData.monthlyTraffic]] : []),
+    [],
+    ["SCORE GLOBAL", `${report.overallScore}/100`],
+    [],
+    ["Resume", report.summary],
+    [],
+    ["Impact estime", report.estimatedImpact],
+    [],
+    ["Scores par section"],
+    ["Section", "Score", "Score max", "Pourcentage"],
+    ...report.sections.map((s) => [
+      s.title,
+      s.score,
+      s.maxScore,
+      `${Math.round((s.score / s.maxScore) * 100)}%`,
+    ]),
+    [],
+    ["Quick Wins — A faire en priorite"],
+    ...report.quickWins.map((w, i) => [`${i + 1}. ${w}`]),
+  ];
+  const wsSynthese = XLSX.utils.aoa_to_sheet(syntheseData);
+  wsSynthese["!cols"] = [{ wch: 35 }, { wch: 60 }, { wch: 12 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, wsSynthese, "Synthese");
+
+  // --- Un onglet par section ---
+  report.sections.forEach((section) => {
+    const pct = Math.round((section.score / section.maxScore) * 100);
+    const sectionData = [
+      [section.title],
+      [],
+      ["Score", `${section.score}/${section.maxScore} (${pct}%)`],
+      [],
+      ["Statut", "Constat", "Recommandation"],
+      ...section.findings.map((f) => {
+        const statusLabel =
+          f.type === "positive"
+            ? "OK"
+            : f.type === "warning"
+              ? "Attention"
+              : "Critique";
+        return [statusLabel, f.text, f.recommendation || "—"];
+      }),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(sectionData);
+    ws["!cols"] = [{ wch: 12 }, { wch: 55 }, { wch: 55 }];
+
+    // Nom d'onglet tronque a 31 car (limite Excel)
+    const sheetName = section.title.slice(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  // Telecharger
+  XLSX.writeFile(wb, `audit-cro-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
 export default function ResultPage() {
   const router = useRouter();
   const [report, setReport] = useState<AuditReport | null>(null);
@@ -207,11 +276,11 @@ export default function ResultPage() {
               Nouvel audit
             </button>
             <button
-              onClick={() => window.print()}
+              onClick={() => exportToExcel(report, formData)}
               className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-dark"
             >
-              <Download className="h-4 w-4" />
-              Exporter en PDF
+              <FileSpreadsheet className="h-4 w-4" />
+              Exporter en Excel
             </button>
           </div>
         </div>
