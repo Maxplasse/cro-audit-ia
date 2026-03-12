@@ -86,7 +86,8 @@ function FindingIcon({ type }: { type: string }) {
 
 function PageScreenshot({ url }: { url: string }) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
-  const screenshotSrc = `/api/screenshot?url=${encodeURIComponent(url)}`;
+  // Appel direct a Microlink cote client (evite le timeout des serverless functions)
+  const screenshotSrc = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=1280&viewport.height=800`;
 
   return (
     <div className="mb-10 rounded-2xl border border-border bg-white p-6 animate-fade-in">
